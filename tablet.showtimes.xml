@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<i:table xmlns:i="http://query.yahooapis.com/v1/schema/internalTable.xsd" xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+    <meta>
+        <author>Naveen Gavini</author>
+	<description>
+       		Retrieve movie showtimes from Yahoo! Movies.
+	</description>
+        <sampleQuery>select * from {table} where movie_id="1810187722" and postal_code="95054"</sampleQuery>
+    </meta>
+
+    <i:bindings>
+        <i:select produces="XML" itemPath="">
+            <urls>
+                <url env="all">
+		    http://api.movies.yahoo.com:4080/V2/listTheatersByPostalCode?mid={movie_id}&amp;pcode={postal_code}&amp;yprop=searchdd&amp;count=4
+                </url>
+            </urls>
+
+            <inputs>
+            	<key id='postal_code' type='xs:string' paramType='path' required='true' />
+                <key id='movie_id' type='xs:string' paramType='path' required='true' />
+            </inputs>
+
+            <execute><![CDATA[
+            	var xml = request.get().response;
+
+                response.object=xml;
+      ]]></execute>
+        </i:select>
+    </i:bindings>
+</i:table>

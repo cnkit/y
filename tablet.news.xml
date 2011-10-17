@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<i:table xmlns:i="http://query.yahooapis.com/v1/schema/internalTable.xsd" xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+  <meta>
+    <author>Yahoo! Inc.</author>
+    <sampleQuery>select * from {table} where query="Barack Obama" AND count=10 AND offset=0</sampleQuery>
+  </meta>
+  <i:bindings>
+    <i:select itemPath="" produces="XML" useProxy="false">
+      <urls>
+        <url env="all">http://binggw.image.partner.yahoo.com:8075/std_xmls_a01?query={query}&amp;custid1=yahoo&amp;custid2=us&amp;hits={count}&amp;offset={offset}&amp;encoding=utf-8&amp;flickr=1&amp;source=onlyultra&amp;freshtag=freshnesscarousel</url>
+      </urls>
+      <inputs>
+        <key id="query" type="xs:string" paramType="path" required="true" />
+        <key id="offset" type="xs:string" paramType="path" required="true" />
+        <key id="count" type="xs:string" paramType="path" required="true" />
+      </inputs>
+      <execute><![CDATA[
+      y.include('env.js');
+      y.include('resource.js');
+      try {
+          var base = new Namespace('http://api.finance.yahoo.com:4080/v1/schema.rng');
+          var results = [];
+          var res = request.get();
+          var data = y.xmlToJson(res.response);
+          var items = data.MMS.SET.GRP.RES;
+          if(!items) {
+              throw 'no news with image'; // FIXME: Please don't raise an exception for this use case
+          }
+          if(!(items instanceof Array)) { //single item
+              throw 'show text news instead';
+          }
+          for each (var item in items) {
+              var match = /\/\/([^/]*)/.exec(item.RURL); //try to get news source from news url
+              results.push({
+                      'title': item.TIT,
+                      'url': item.RURL,
+                      'image': item.URL,
+                      'thumbnail': genResourceUrlAbsDimension(item.URL, 600, 420, 80),
+                      'summary': item.ABS,
+                      'source': (match && match[1]) || ''
+                      });
+          }
+          response.object = {'items': results};
+      } catch (exception) {
+          try {
+              y.log(exception);
+              //get text news
+              query = encodeURI(query);
+              y.log(query);
+              var textResult = y.rest('http://news.partner.yahoo.com:8075/xml?hits='+count+'&search=shortcuts&query='+query+'&age=7d&limlanguage=en&offset='+offset+'&dups=hide&custid=yahoo%2Fus%2Fsc%2Fblended').get().response;
+              textResult = y.xmlToJson(textResult);
+              var items = textResult.RESULTSET.RESULT;
+              var results = [];
+              for each (var item in items) {
+                  results.push({
+                          'title': item.TITLE,
+                          'url': item.URL,
+                          'summary': item.ABSTRACT,
+                          'source': item.SOURCENAME
+                          });
+              }
+              response.object = {'items': results};
+
+          } catch (exp) {
+              y.log(exp);
+              response.object = {'items': []};
+          }
+      }
+        ]]></execute>
+    </i:select> 
+  </i:bindings>
+</i:table>
+

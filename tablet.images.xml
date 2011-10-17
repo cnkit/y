@@ -1,0 +1,168 @@
+<?xml version="1.0"?>
+<i:table yahooInternal="true" xmlns:i="http://query.yahooapis.com/v1/schema/internalTable.xsd" xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+    <meta>
+        <author>Jayant Sai</author>
+        <description>
+            Queries Image Search APIs for Deadeye.
+        </description>
+        <documentationURL>http://twiki.corp.yahoo.com/view/Deadeye/Package_queries</documentationURL>
+        <sampleQuery>SELECT * FROM {table} WHERE query="Star Wars"</sampleQuery>
+    </meta>
+
+    <i:bindings>
+        
+        <!-- http://imagedd.search.yahoo.com:4080/c/sccs.php/images_dd/std_xml_a00?query=" + query + "&custid1=yahoo&custid2=us&catalog=image&offset=0&hits=3&encoding=utf-8&ocr= -->
+        <!-- http://binggw.image.partner.yahoo.com:8075/std_xmls_a01?
+        query=<query>&
+        custid1=yahoo&
+        custid2=us&
+        catalog=image&
+        offset=0&
+        hits=20&
+        encoding=utf-8&
+        flickr=1&
+        qs=c&
+        ocr=yes&
+        BingMarket=en-US&
+        BingUILanguage=en-US&
+        BingClientIP=<ip>&
+        UserIpAddress=<ip>&
+        BingAppId=5F9198D88DD7CDCC0B3EAF208594BC950CA8ED2B&
+        BingExternalExp=YBucket:mobile&
+        -->
+        <i:select produces="XML" itemPath="" useProxy="false">
+            <urls>
+                <!--url>http://imagedd.search.yahoo.com:4080/c/sccs.php/images_dd/std_xml_a00</url-->
+                <url>http://binggw.image.partner.yahoo.com:8075/std_xmls_a01</url>
+            </urls>
+            
+            <paging model="offset">
+              <start id="offset" default="0" />
+              <pagesize id="hits" max="100" />
+              <total default="15" maxIndex="100" />
+            </paging>
+            
+            <inputs>
+                <key id="query" type="xs:string" paramType="query" required="true" />
+
+                <!--We have ipad, iphone now-->
+                <key id="device_type" type="xs:string" paramType="query" required="false" default="ipad" />
+                
+                <key id="custid1" type="xs:string" paramType="query" required="false" default="yahoo" />
+                <key id="custid2" type="xs:string" paramType="query" required="false" default="us" />
+                <key id="catalog" type="xs:string" paramType="query" required="false" default="image" />
+                <key id="encoding" type="xs:string" paramType="query" required="false" default="utf-8" />
+                <key id="flickr" type="xs:string" paramType="query" required="false" default="1" />
+                <key id="qs" type="xs:string" paramType="query" required="false" default="c" />
+                <key id="ocr" type="xs:string" paramType="query" required="false" default="yes" />
+                <key id="dimensions" type="xs:string" paramType="query" required="false" default="" />
+                
+                <key id="BingMarket" type="xs:string" paramType="query" required="false" default="en-US" />
+                <key id="BingUILanguage" type="xs:string" paramType="query" required="false" default="en-US" />
+                <key id="BingAppId" type="xs:string" paramType="query" required="false" default="5F9198D88DD7CDCC0B3EAF208594BC950CA8ED2B" />
+                
+                <key id="BingExternalExp" type="xs:string" paramType="query" required="false" default="YBucket:mobile" />
+                
+                <key id="raw" type="xs:string" paramType="variable" required="false" default="" />
+            </inputs>
+            
+            <execute>
+                <![CDATA[
+                    y.include('env.js');
+                    y.include('image.js');
+                    y.include('resource.js');
+                
+                    var theRequest = request.query("query", unescape(inputs["query"])).query("BingClientIP", request.headers["YahooRemoteIP"]).query("UserIpAddress", request.headers["YahooRemoteIP"]).accept("application/xml;charset=utf-8").get();
+                    var xml = theRequest.response;
+                    y.log(theRequest.headers);
+                    
+                    if (inputs["raw"] == "true") {
+                        response.object = xml;
+                    }
+                    else {
+                        var imagesResult = {
+                            query: unescape(inputs["query"]),
+                            image: []
+                        };
+                
+                        for each (var set in xml.children()) {
+                            for each (var grp in set.children()) {
+                                for each (var res in grp.children()) {
+                                    if (res.@URL.toString() !== "") {
+                                        var geometry = res.@GEO.toString().split("x"),
+                                            tgeometry = res.@TGEO.toString().split("x");
+                                        
+                                        var img = new deadeye.entities.image(),
+                                            imageOriginal = new deadeye.entities.image.imageInstance(),
+                                            imageMedium = new deadeye.entities.image.imageInstance(),
+                                            imageLarge = new deadeye.entities.image.imageInstance(),
+                                            imageThumbnail = new deadeye.entities.image.imageInstance();
+                                        
+                                        img.id = res.@OID.toString();
+                                        img.title = res.@TIT.toString();
+                                        img.sourceURL = res.@RURL.toString();
+
+                                        imageOriginal.url = res.@URL.toString();
+                                        imageOriginal.height = geometry[1];
+                                        imageOriginal.width = geometry[0];
+                                        img.imageInstances.original = imageOriginal;
+                                        
+                                        var device_type = inputs["device_type"],
+                                            medium_width, 
+                                            medium_height,
+                                            medium_quality = 80,
+                                            large_width, 
+                                            large_height,
+                                            large_quality = 80;
+
+                                        switch(device_type){
+                                            case 'iphone':
+                                                large_width = 640;
+                                                large_height = 480;
+                                                medium_width = 320;
+                                                medium_height = 240;
+                                                break;
+
+                                            case 'ipad':
+                                            default:
+                                                large_width = 1024;
+                                                large_height = 768;
+                                                medium_width = 400;
+                                                medium_height = 288;
+                                                break;
+                                        
+                                        }
+
+                                        imageLarge.url = genResourceUrlAbsDimension(res.@URL.toString(), large_width, large_height, large_quality);
+                                        imageLarge.height = large_width;
+                                        imageLarge.width = large_height;
+                                        img.imageInstances.large = imageLarge;
+
+                                        imageMedium.url = genResourceUrlAbsDimension(res.@URL.toString(), medium_width, medium_height, medium_quality);
+                                        imageMedium.height = medium_width;
+                                        imageMedium.width = medium_height;
+                                        img.imageInstances.medium = imageMedium;
+
+
+                                        imageThumbnail.url = res.@TURL.toString();
+                                        imageThumbnail.height = tgeometry[1];
+                                        imageThumbnail.width = tgeometry[0];
+                                        img.imageInstances.thumbnail = imageThumbnail;
+                                        
+                                        img.sanitize();
+                                        imagesResult.image.push(img);
+                                    }
+                                }
+                            }
+                        }
+
+                        response.object = y.jsonToXml({ "images": imagesResult });
+                    }
+                ]]>
+            </execute>
+           
+        </i:select>
+
+    </i:bindings>
+
+</i:table>

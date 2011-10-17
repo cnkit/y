@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<i:table xmlns:i="http://query.yahooapis.com/v1/schema/internalTable.xsd" xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+  <meta>
+    <author>Yahoo! Inc.</author>
+    <sampleQuery>select * from {table} where query="CS_trends_09_02_2011_am"</sampleQuery>
+  </meta>
+  <i:bindings>
+    <i:select itemPath="" produces="XML" useProxy="false">
+      <urls>
+        <url></url>
+      </urls>
+      <inputs>
+        <key id="query" type="xs:string" paramType="variable" required="true" />
+      </inputs>
+      <execute><![CDATA[
+        try {
+          var results = [];
+          var url = 'http://collections.api.yahoo.com:4080/dal/V1/collection/scan?guid=tts_us&term=' + y.crypto.encodeMd5Hex(query);
+          var res = y.rest(url).get().response;
+          var data = y.xmlToJson(res);
+          var recordId = data.ResultSet.Result.Record.recordId;
+          if(recordId) {
+            url = 'http://collections.api.yahoo.com:4080/dal/V1/item/get?guid=tts_us&cid='+recordId;
+            res = y.rest(url).get().response;
+            data = y.xmlToJson(res);
+            var items = data.ResultSet.Result;
+            if(items) {
+              if(!(items instanceof Array)) { //single item
+                var items = [items];
+              }
+              for each (var item in items) {
+                results.push({
+                  'title': item.Item.title,
+                  'image': item.Item.imgURL,
+                  'source': item.Item.imgsrc,
+                  'summary': item.Item.desc,
+                  'url': '/tablet/s?p='+item.Item.title
+                });
+              }
+            }
+          }
+          response.object = {'items': results};
+        } catch (exception) {
+          y.log(exception);
+          response.object = {'items': []};
+        }
+        ]]></execute>
+    </i:select> 
+  </i:bindings>
+</i:table>

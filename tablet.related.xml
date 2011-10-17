@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<i:table xmlns:i="http://query.yahooapis.com/v1/schema/internalTable.xsd" xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+    <meta>
+        <author>James Alley</author>
+        <description>Finds related Search queries</description>
+        <sampleQuery>SELECT * from {table} WHERE query="Madonna"</sampleQuery>
+        <sampleQuery>use "http://www.manalagi.com/m/yql/tablet.related.xml" as tablet.related;select * from tablet.related where query="Obama";</sampleQuery>
+    </meta>
+
+    <i:bindings>
+        <i:select produces="XML" itemPath="">
+            <urls>
+                <url env="all">
+                    http://seaview.us.search.yahoo.com:80/gossip-us_rc-seaview?nresults=9&amp;command={query}
+                </url>
+            </urls>
+
+            <inputs>
+            	<key id='query' type='xs:string' paramType='path' required='true' />
+            </inputs>
+            <execute><![CDATA[
+            	var xml = request.get().response;
+
+                response.object=xml;
+            ]]></execute>
+        </i:select>
+    </i:bindings>
+</i:table>

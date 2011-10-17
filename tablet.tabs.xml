@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<i:table xmlns:i="http://query.yahooapis.com/v1/schema/internalTable.xsd" xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+	<meta>
+		<sampleQuery>select * from {table} where query="Barak Obama" and tabs="news"</sampleQuery>
+		<author>Andrew Wooldridge</author>
+		<description>Queries initial images for Cleanslate Tabs</description>
+	</meta>
+	<i:bindings>
+    	<i:select itemPath="" produces="XML" useProxy="false">
+   			<inputs>
+				<key id="q" as="query" type="xs:string" paramType="query" required="true" />
+				<key id="tabs" type="xs:string" paramType="variable" required="true"/>
+			</inputs>
+			<execute>
+				<![CDATA[
+					var query = unescape(inputs["query"]);
+					var tablist = tabs.split(",");
+					y.log("tablist:");
+					y.log(tablist);
+					
+					var tables = {
+						"images" : {
+							"name" : "tablet.images",
+							"tag" : <images></images>
+						},
+						"news" : {
+							"name" : "tablet.news",
+							"tag" : <news></news>,
+						},
+						"web" : {
+							"name" : "tablet.search",
+							"tag" : <web></web>
+						},
+						"video" :{
+							"name": "tablet.video",
+							"tag": <video></video>,	
+						},
+						"twitter" : {
+							"tag": <twitter></twitter>,
+							"name" : "tablet.twitter"
+						},
+						"album": {
+							"tag": <album></album>,
+							"name" : "music.release.search"
+						},
+						"trending":{
+							"tag": <trending></trending>,
+							"name": "tablet.trending",
+							"key": "CS_trends_09_02_2011_am"
+						}
+
+					};
+					var requests = [];
+					
+					var res = <res><query>{query}</query></res>;
+					var index = 0; //to reference into requests array;
+
+					//y.log(tablist.indexOf("'news'"));
+
+					// possible values: 'news', 'images', 'twitter', 'videos', 'albums'
+					// 'web' may be sent to us but we do not use it.
+
+					/** news **/
+					if(tablist.indexOf("'news'") != -1){
+						try {
+
+							var statement = "SELECT items.title, items.thumbnail FROM " + tables.news.name + " WHERE query=\""+ query + "\" and count='2' and offset='0'";
+							requests[index] = y.query(statement);
+
+							var tag = tables.news.tag;
+							for each( var child in requests[index].results.children()){
+								tag.appendChild(child);
+							}
+						
+							res.appendChild(tag);
+							index +=1; //move to next index for array
+
+						} catch(err){ y.log(err)}
+					};
+
+					/** images **/
+					if(tablist.indexOf("'images'") != -1){
+						try {
+
+							statement = "SELECT image.title, image.imageInstances.medium.url FROM " + tables.images.name + "(0,1) WHERE query=\" " + query + "\" ";
+							requests[index] = y.query(statement);
+
+							tag = tables.images.tag;
+							for each( var child in requests[index].results.children()){
+								tag.appendChild(child);
+							}
+
+							res.appendChild(tag);
+							index +=1;
+
+						} catch(err){ y.log(err)}
+					};
+
+					/** videos **/
+					if(tablist.indexOf("'videos'") != -1){
+						try {
+
+							statement = "SELECT * FROM " + tables.video.name + "(0,1) WHERE query=\"" + query + "\"";
+							requests[index] = y.query(statement);
+
+							tag = tables.video.tag;
+							for each( var child in requests[index].results.children()){
+								tag.appendChild(child);
+							}
+
+							res.appendChild(tag);
+							index +=1;
+
+						} catch(err){ y.log(err)}
+					};
+
+					/** twitter **/
+					if(tablist.indexOf("'twitter'") != -1){
+						try {
+
+							statement = "SELECT tweets.text, tweets.createdAt, tweets.user.profileImageURL, tweets.user.screen_name FROM " + tables.twitter.name + "(0,2) where query=\"" + query + "\" ";
+							requests[index] = y.query(statement);
+							tag = tables.twitter.tag;
+
+							for each( var child in requests[index].results.children()){
+								tag.appendChild(child);
+							}
+
+							res.appendChild(tag);
+							index +=1;
+
+						} catch(err){ y.log(err)}
+					};
+
+					/** albums **/
+					if(tablist.indexOf("'albums'") != -1){
+						try {
+
+							statement = "SELECT * FROM " + tables.album.name+"(0,2) where keyword=\"" + query + "\" ";
+							requests[index] = y.query(statement);
+							tag = tables.album.tag;
+
+
+							for each( var child in requests[index].results.children()){
+								tag.appendChild(child);
+							}
+
+							res.appendChild(tag);
+							index +=1;
+
+						} catch(err){ y.log(err)}
+					};
+
+					response.object = res;
+				]]>
+			</execute>
+		</i:select> 
+  </i:bindings>
+</i:table>

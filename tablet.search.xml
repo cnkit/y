@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<i:table yahooInternal="true" xmlns:i="http://query.yahooapis.com/v1/schema/internalTable.xsd" xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+    <meta>
+        <author>Jayant Sai</author>
+        <description>
+            Queries Mobile Search API for Deadeye.
+        </description>
+        <documentationURL>http://twiki.corp.yahoo.com/view/Deadeye/Package_queries</documentationURL>
+        <sampleQuery>SELECT * FROM {table} WHERE query="Star Wars"</sampleQuery>
+    </meta>
+
+    <i:bindings>
+        
+        <!-- http://search.yahoo.com/mobile/sdata?p=nicole%20ritchie&b=1&n=10&.intl=us&.lang=en&hloc=1298%20N%20Mathilda%20Ave,Sunnyvale%2094089-1213,CA,US -->
+        <i:select produces="XML" itemPath="" useProxy="false">
+            <urls><url>http://search.yahoo.com/mobile/sdata</url></urls>
+
+            <paging model="offset">
+                <start id="b" default="0" />
+                <pagesize id="n" max="100" />
+                <total default="10" maxIndex="100" />
+            </paging>
+
+            <inputs>
+                <key id="p" as="query" type="xs:string" paramType="query" required="true" />
+                
+                <key id=".intl" type="xs:string" paramType="query" required="false" default="us" />
+                <key id=".lang" type="xs:string" paramType="query" required="false" default="en" />
+                <key id="hloc" type="xs:string" paramType="query" required="false" />
+                
+                <key id="site" type="xs:string" paramType="variable" required="false" default="" />
+            </inputs>
+            
+            <execute>
+                <![CDATA[
+                    y.include('env.js');
+                    y.include('resource.js');
+
+                    var query = unescape(inputs["query"]);
+                    
+                    if (inputs["site"] != "") {
+                        query = "site:" + inputs["site"] + " " + query;
+                    }
+
+                    var xml = request.query("p", query).contentType("application/json").get().response;
+                    var ystXML = xml.yst.length() > 0 ? xml.yst : xml;
+                    var suggXML = xml.suggestions;
+                    
+                    var searchResults = <search-results>
+                        <query>{ unescape(inputs["query"]) }</query>
+                    </search-results>;
+                    
+                    var yst = <yst></yst>
+                    for each (var result in ystXML.results) {
+                        var host = result.dispUrl;
+                        var index = host.indexOf('/');
+
+                        if (index > 0) {
+                            host = host.substring(0, host.indexOf('/'));
+                        }
+
+                        result.favicon = genResourceFavicon('http://' + host + '/');
+                        yst.appendChild(result);
+                    }
+                    searchResults.appendChild(yst);
+                    
+                    var suggestions = <suggestions></suggestions>
+                    if (suggXML) {
+                        for each (var gossip in suggXML.gossip) {
+                            suggestions.appendChild(gossip);
+                        }
+                    }
+                    searchResults.appendChild(suggestions);
+
+                    response.object = searchResults;
+                ]]>
+            </execute>
+        </i:select>
+        
+    </i:bindings>
+
+</i:table>

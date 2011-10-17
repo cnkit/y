@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<i:table xmlns:i="http://query.yahooapis.com/v1/schema/internalTable.xsd" xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+    <meta>
+        <author>Naveen Gavini</author>
+    <description>
+            Retrieve movie details from Yahoo! Movies.
+    </description>
+        <sampleQuery>select * from {table} where movie_name="The Hangover" and movie_id="1810187722"</sampleQuery>
+    </meta>
+
+    <i:bindings>
+        <i:select produces="XML" itemPath="">
+            <urls>
+                <url env="all">
+            http://us-iy2.search.vip.sk1.yahoo.com:80/us/iy.web.php?ei=UTF-8&amp;eo=UTF-8&amp;p={movie_name}&amp;o=xml&amp;intl=us&amp;ult=2&amp;q={movie_name}&amp;sck={movie_id}&amp;sct=moviewow&amp;testid=VIP099&amp;src=web
+                </url>
+            </urls>
+
+            <inputs>
+                <key id='movie_name' type='xs:string' paramType='path' required='true' />
+                <key id='movie_id' type='xs:string' paramType='path' required='true' />
+            </inputs>
+
+            <execute><![CDATA[
+                var xml = request.get().response;
+                var moviens = new Namespace('urn:yahoo:movie');
+                var MovieDetails = xml.moviens::MovieDetails;
+                try {
+                    var statement = "select * from tablet.video where query='" + movie_name + "'";
+                    var videoResult = y.query(statement);
+                    var videoURL = 'http://www.youtube.com/embed/' + videoResult.results.video[0].id;
+                    MovieDetails.videoEmbedURL = videoURL;
+                } catch (exception) {
+                    y.log(exception);
+                }
+                response.object=MovieDetails;
+      ]]></execute>
+        </i:select>
+    </i:bindings>
+</i:table>

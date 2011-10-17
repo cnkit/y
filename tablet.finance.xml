@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<i:table xmlns:i="http://query.yahooapis.com/v1/schema/internalTable.xsd" xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+    <meta>
+        <sampleQuery>
+            select * from {table} where symbol="YHOO"
+        </sampleQuery>
+    </meta>
+    <i:connects>
+        <i:connect env="prod" yca="yahoo.pipes.yql.yosprod" />
+        <i:connect env="gamma" yca="yahoo.pipes.yql.yosgamma" />
+        <i:connect env="beta" yca="yahoo.pipes.yql.yosbeta" />
+        <i:connect env="int" yca="yahoo.pipes.yql.yosint" />
+        <i:connect env="dev" yca="yahoo.pipes.yql.yosnightly" />
+    </i:connects>
+    <i:bindings>
+        <i:select itemPath="quotes.quote" produces="XML" useProxy="false">
+           <urls>
+            <url>http://api.finance.yahoo.com:4080/v1/quote/symbol/{-listjoin|,|symbol}?view=detail&amp;format=xml</url>
+           </urls>
+           <inputs>
+               <key id='symbol' type='xs:string' batchable='true' maxBatchItems='20' paramType='path' required='true'/>
+           </inputs>
+            <execute><![CDATA[
+
+                function GetMonthNumFromStr( inMonthStr )
+                {
+                    var monthNum = 0;
+                    
+                    if ( inMonthStr.indexOf("Jan") != -1 )
+                        monthNum = 1;
+                    if ( inMonthStr.indexOf("Feb") != -1 )
+                        monthNum = 2;
+                    if ( inMonthStr.indexOf("Mar") != -1 )
+                        monthNum = 3;
+                    if ( inMonthStr.indexOf("Apr") != -1 )
+                        monthNum = 4;
+                    if ( inMonthStr.indexOf("May") != -1 )
+                        monthNum = 5;
+                    if ( inMonthStr.indexOf("Jun") != -1 )
+                        monthNum = 6;
+                    if ( inMonthStr.indexOf("Jul") != -1 )
+                        monthNum = 7;
+                    if ( inMonthStr.indexOf("Aug") != -1 )
+                        monthNum = 8;
+                    if ( inMonthStr.indexOf("Sep") != -1 )
+                        monthNum = 9;
+                    if ( inMonthStr.indexOf("Oct") != -1 )
+                        monthNum = 10;
+                    if ( inMonthStr.indexOf("Nov") != -1 )
+                        monthNum = 11;
+                    if ( inMonthStr.indexOf("Dec") != -1 )
+                        monthNum = 12;
+                        
+                    //y.log( inMonthStr + " " + monthNum );
+                    
+                    return monthNum;
+                }
+
+                default xml namespace='http://api.finance.yahoo.com:4080/v1/schema.rng';
+                var yahoo = new Namespace('http://www.yahooapis.com/v1/base.rng');
+
+                var returned_response = request.get();
+                
+                var cacheTimeout = 0;
+                var cacheControlStr = returned_response.headers["cache-control"];
+
+y.log('PP cache finance:'+cacheControlStr);
+y.log('PP header finance:'+returned_response.headers);
+
+                var maxAgeStr = 'max-age';
+                var beginStr = cacheControlStr.indexOf(maxAgeStr);
+                var endStr = beginStr;
+                
+                if ( beginStr != -1 )
+                {
+                    endStr = beginStr + maxAgeStr.length;
+
+                    var equalStr = cacheControlStr.indexOf('=', endStr);
+                    var commaStr = cacheControlStr.indexOf(',', endStr);
+
+                    cacheTimeout = cacheControlStr.substring( equalStr+1, commaStr );
+                    
+                    // trim white space
+                    //
+                    cacheTimeout = cacheTimeout.replace(/^\s*|\s*$/g,'');
+                    
+                    // convert to int
+                    //
+                    cacheTimeout = parseInt(cacheTimeout);
+                }
+
+                //y.log(returned_response);
+                returned_response = returned_response.response;
+                //y.log(returned_response);
+
+                var quotes = <quotes></quotes>;
+
+                for each (var quoteIter in returned_response.quotes.quote)
+                {
+                    var quote = <quote symbol={quoteIter.symbol.text().toString()}></quote>;
+
+                    var marketCap = quoteIter.market_cap.text();
+                    marketCap = marketCap / 1000000000;
+
+                    marketCap = Math.round(marketCap*Math.pow(10,3))/Math.pow(10,3);
+                    //marketCap = parseFloat(marketCap).toFixed(2);
+                    
+                    marketCap = marketCap + "B";
+                    
+                    quote.appendChild( <Name>{quoteIter.name.text()}</Name> );
+                    quote.appendChild( <Symbol>{quoteIter.symbol.text()}</Symbol> );
+                    quote.appendChild( <Open>{quoteIter.open.text()}</Open> );
+                    quote.appendChild( <DaysHigh>{quoteIter.day_high.text()}</DaysHigh> );
+                    quote.appendChild( <DaysLow>{quoteIter.day_low.text()}</DaysLow> );
+                    quote.appendChild( <MarketCapitalization>{marketCap}</MarketCapitalization> );
+                    quote.appendChild( <YearHigh>{quoteIter.year_high.text()}</YearHigh> );
+                    quote.appendChild( <YearLow>{quoteIter.year_low.text()}</YearLow> );
+                    quote.appendChild( <Volume>{quoteIter.volume.text()}</Volume> );
+                    quote.appendChild( <Average3mVolume>{quoteIter.avg_3m_volume.text()}</Average3mVolume> );
+                    quote.appendChild( <PERatio>{quoteIter.pe_ratio.text()}</PERatio> );
+                    quote.appendChild( <LastTradePriceOnly>{quoteIter.price.text()}</LastTradePriceOnly> );
+                    quote.appendChild( <Change>{quoteIter.change.text()}</Change> );
+                    quote.appendChild( <ChangePercent>{quoteIter.chg_percent.text()}</ChangePercent> );
+                    quote.appendChild( <Exchange>{quoteIter.exchange.text()}</Exchange> );
+                    quote.appendChild( <AfterMktChange>{quoteIter.after_mkt_change.text()}</AfterMktChange> );
+                    quote.appendChild( <AfterMktChangePercent>{quoteIter.after_mkt_chg_percent.text()}</AfterMktChangePercent> );
+                    quote.appendChild( <AfterMktChangePrice>{quoteIter.after_mkt_price.text()}</AfterMktChangePrice> );
+                    
+                    quote.appendChild( <realtime_price>{quoteIter.realtime_price.text()}</realtime_price> );
+                    quote.appendChild( <realtime_change>{quoteIter.realtime_change.text()}</realtime_change> );
+                    quote.appendChild( <realtime_chg_percent>{quoteIter.realtime_chg_percent.text()}</realtime_chg_percent> );
+                    quote.appendChild( <eps_curr_year>{quoteIter.eps_curr_year.text()}</eps_curr_year> );
+
+                    var pubDate = quoteIter.realtime_ts.text();
+                    
+                    var myDate = new Date( pubDate * 1000 );
+                    //y.log(myDate.toUTCString());
+                    //y.log(myDate.toLocaleString());
+                    pubDate = myDate.toUTCString();
+                    
+                    var dateArray = pubDate.split(" ",6);
+                    //y.log(pubDate);
+                    //y.log(dateArray[0]);
+                    //y.log(dateArray[1]);
+                    //y.log(dateArray[2]);
+                    //y.log(dateArray[3]);
+                    //y.log(dateArray[4]);
+                    
+                    var monthNum = GetMonthNumFromStr( dateArray[2] );
+
+                    pubDate =   monthNum + " " + 
+                                dateArray[1] + " " + 
+                                dateArray[3] + " " + 
+                                dateArray[4] + " " +
+                                dateArray[5];
+                    //y.log(pubDate);
+
+                    quote.appendChild( <realtime_ts>{pubDate}</realtime_ts> );
+
+                    pubDate = quoteIter.ts.text();
+                    
+                    myDate = new Date( pubDate * 1000 );
+                    //y.log(myDate.toUTCString());
+                    //y.log(myDate.toLocaleString());
+                    pubDate = myDate.toUTCString();
+                    
+                    dateArray = pubDate.split(" ",6);
+                    //y.log(pubDate);
+                    //y.log(dateArray[0]);
+                    //y.log(dateArray[1]);
+                    //y.log(dateArray[2]);
+                    //y.log(dateArray[3]);
+                    //y.log(dateArray[4]);
+                    
+                    monthNum = GetMonthNumFromStr( dateArray[2] );
+
+                    pubDate =   monthNum + " " + 
+                                dateArray[1] + " " + 
+                                dateArray[3] + " " + 
+                                dateArray[4] + " " +
+                                dateArray[5];
+                    //y.log(pubDate);
+
+                    quote.appendChild( <ts>{pubDate}</ts> );
+                    
+                    quotes.appendChild( quote );
+                }
+                
+                //response.object = returned_response;
+                response.object = quotes;
+                response.maxAge = cacheTimeout;
+          ]]></execute>
+        </i:select>
+    </i:bindings>
+</i:table>

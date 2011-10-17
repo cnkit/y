@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+<i:table yahooInternal="true" xmlns:i="http://query.yahooapis.com/v1/schema/internalTable.xsd" xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+    <meta>
+        <author>Tao Xie</author>
+        <description>Queries Twitter Official API</description>
+        <sampleQuery>SELECT * FROM {table} WHERE query="ladygaga"</sampleQuery>
+    </meta>
+
+    <i:bindings>
+        <i:select produces="JSON" itemPath="">
+            <urls>
+                <url>http://search.twitter.com/search.json?q={query}</url>
+            </urls>
+            <inputs>
+                <key id='query' type='xs:string' batchable='true' maxBatchItems='1' paramType='path' required='true'/>    
+            </inputs>
+            
+            <execute>
+                <![CDATA[        
+                try {
+                    y.include('twitter.js');
+  
+                    var res = request.accept('text/json').get();
+                    var data = res.response;
+                    
+                    // Error Reporting
+                    if (res.status !== null) {
+                        if (res.status !== 200) {
+                            y.log(res.status+" error");
+                            throw res.status;
+                        }
+                    }
+                    if (data === null) {
+                        y.log("Internal Server Error,Throwing 500");
+                        throw "500";
+                    }                
+                   
+                    var results = data.results;
+                    var tweets = []; 
+                    var count = 0;    
+                    for (var i = 0; i < results.length(); i++) {   
+                        var item = results[i];           
+                        
+                        var user = new deadeye.entities.twitter.user();     
+                        user.id = item.from_user_id.toString();
+                        user.profileImageURL = item.profile_image_url.toString(); 
+                        user.screen_name = item.from_user.toString();
+                        
+                        var tweet = new deadeye.entities.twitter.tweet();
+                        tweet.id = item.id.toString();
+                    
+                        tweet.text = item.text.toString();
+                        tweet.createdAt = item.created_at.toString();
+                        var sourceObj = new XML(item.source.toString().replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"'));        
+                        
+                        tweet.source = sourceObj.toString();
+                        tweet.sourceURL = sourceObj.@['href'].toString();
+                        
+                        tweet.user = user;  
+                        tweet.sanitize();
+                        tweets.push(tweet); 
+                        count++;                                            
+                    }                 
+                    y.log("total tweets: " + count);
+                    response.maxAge = 300;
+					response.staleWhileRevalidate = 3600;
+                    var responseObject = y.jsonToXml({"tweets" : tweets}); 
+                    response.object = responseObject;     
+                }
+                catch (exception) {
+                    y.log('exception: ' + exception);
+                    if(!isNaN(parseInt(exception))) {
+                        y.exit(parseInt(exception),"");
+                    }
+                    y.exit(500, "Unknown error");
+                }                
+                ]]>
+            </execute>
+        </i:select>
+    </i:bindings>
+</i:table>

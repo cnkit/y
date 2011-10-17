@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<i:table xmlns:i="http://query.yahooapis.com/v1/schema/internalTable.xsd" xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+    <meta>
+        <!--jsoncomment 
+{
+    "dependencies": [{
+        "name": "Finance graph API",
+        "description": "",
+        "doc": "http://twiki.corp.yahoo.com/view/Finance/FinanceApis",
+        "example":
+        "http://chartapi.finance.yahoo.com/instrument/1.0/YHOO/chartdata;type=quote;range=1d",
+        "contacts": [
+              
+              {
+                "group": "DEV",
+                "email": "Evan Torrie"
+              }
+          ]            
+    }],
+    "output": "deadeye.entities.graph",
+    "maintainers": [{
+        "name": "Karan Ashar",
+        "email": "kashar@yahoo-inc.com"
+    }],
+    "cacheable": "no",
+    "private": "yes"
+}		
+		 -->
+        <sampleQuery>
+            select * from {table} where symbol = "YHOO" and range = "1d"
+        </sampleQuery>
+    </meta>
+    <i:bindings>
+        <i:select itemPath="result.graph" produces="XML">
+            <inputs>
+                <key id='symbol' type='xs:string' batchable='false' paramType='variable' required='true'/>
+                <key id='range' type='xs:string' batchable='false' paramType='variable' required='true' />
+            </inputs>
+            <execute><![CDATA[
+				y.include('graph.js');
+ 
+				try
+				{
+					// Get the daily data to graph
+	                //
+	                var sym = symbol.toString().split(',');
+					var graph_array = [];
+					for (var i=0;i<sym.length;i++){
+						if(sym[i].toString().indexOf("$_")>-1){
+						 var queryString = 'select * from deadeye.content.finance.commodity_symbols';   
+	                	 y.log("queryString = " + queryString);      
+	                	 var queryRequest = y.query(queryString);
+	                	 var temp = sym[i].toString().split("$_");
+	                	 temp[1]=temp[1].replace("_"," ");
+	                	 for each (var ent in queryRequest.results.entries.entry){
+	                	 	if(ent.name.toLowerCase() == temp[1].toLowerCase()){
+	                	 		symb = ent.symbol;
+	                	 	}
+	                	 }
+						}else{
+							symb = sym[i];
+						}
+						symb = encodeURI(symb);
+						var url = "http://chartapi.finance.yahoo.com/instrument/1.0/"+symb+"/chartdata;type=quote;range="+range;	
+						var res = y.rest(url).get();
+						var data = res.response;
+						if(res.status != null)
+						{
+							if(res.status!=200)
+							{
+								y.log(res.status+" error");
+								throw res.status;
+							}
+						}
+						if(data == null)
+						{
+							y.log("Internal Server Error,Throwing 500");
+							throw "500";
+						}
+						
+						if(data.error.toString() != "")
+						{
+							y.log("Not Found, will return 404");
+							throw "404";
+						}
+		             	
+		             	 var returned_response = data;
+		                
+		                default xml namespace = "";
+		
+		                var values_meta = returned_response['values-meta'];
+		                var close_index;
+		                var volume_index;
+		                
+		                // Find index of locations of close and volume from values meta
+		                //
+		                for(var i=0;i<values_meta.value.length();i++)
+		                {
+		                	if(values_meta.value[i].@["id"] == "close")
+		                		close_index = i;
+		                	if(values_meta.value[i].@["id"] == "volume")
+		                	    volume_index = i;
+		                	
+		                }
+		                
+		                // Define the graph entitiy
+		                var graph = new deadeye.entities.graph();
+		                var graph_volume = new deadeye.entities.graph();
+		                
+		                //passing query parameter in response
+		                graph.range = range;
+		                graph_volume.range = range;
+		                
+		                //The title for X,Y axis of the graph
+		                graph.xTitle = "time";
+		                graph.yTitle = "closing-price";
+		                
+		                graph_volume.xTitle = "time";
+		                graph_volume.yTitle = "volume";
+		                
+		                
+		                // The min,max values of the X axis. Also, the X axis values will be of type timestamp
+		                graph.xMin = returned_response["reference-meta"].min.toString();
+		                graph.xMax = returned_response["reference-meta"].max.toString();
+		                graph.xType = "timestamp";
+		                
+		                graph_volume.xMin = returned_response["reference-meta"].min.toString();
+		                graph_volume.xMax = returned_response["reference-meta"].max.toString();
+		                graph_volume.xType = "timestamp";
+		                
+		                // The min,max values of Y axis. The Y axis values will be of type number.
+		                for each (var value in returned_response.series.values.value)
+		                {
+		                	if(value.@["id"] == "close")
+		                	{
+		                		graph.yMin = value.min.toString();
+		                		graph.yMax = value.max.toString();
+		                		graph.yType = "number";
+		                	}else if(value.@["id"] == "volume")
+		                	{
+		                		graph_volume.yMin = value.min.toString();
+		                		graph_volume.yMax = value.max.toString();
+		                		graph_volume.yType = "number";
+		                	}
+		                }
+		               
+		                for each (var item in returned_response.series.p)
+		                {
+		                	var timestamp = item.@["ref"].toString();
+		                	var close_price = item.v[close_index].toString();
+		                	var volume = item.v[volume_index].toString();
+		                	//y.log(timestamp);
+		                	
+		                	graph.dataPoints.push({"x":timestamp, "y":close_price});
+		                	graph_volume.dataPoints.push({"x":timestamp, "y":volume});
+		                	
+		                }
+		             
+		             	for each (var label in returned_response["reference-meta"].labels.label)
+		             	{
+		             		
+		             		graph.xAxisLabels.push(label.toString());
+		             		graph_volume.xAxisLabels.push(label.toString());
+		             	}
+		             	
+		             	graph.id = symbol+range;
+		             	graph.symbol = symbol;
+		             	graph.pubdate = ((new Date(returned_response.meta['generated-on']).getTime())/1000).toString();
+		             	graph_array.push(graph);
+		             	
+		             	graph_volume.id = 'vol_'+symbol+range;
+		             	graph_volume.symbol = symbol;
+		             	graph_volume.pubdate = ((new Date(returned_response.meta['generated-on']).getTime())/1000).toString();
+		             	graph_array.push(graph_volume);
+					}
+	               
+	             	var responseObject = y.jsonToXml({"graph": graph_array});
+	                response.maxAge = 300;
+					response.staleWhileRevalidate = 3600;
+	                response.object = responseObject;
+                }catch(exception){
+                	y.log('exception: ' + exception);
+					if(!isNaN(parseInt(exception))) {
+						y.exit(parseInt(exception),"");
+					}
+					y.exit(500, "Unknown error");
+                }
+      ]]></execute>
+        </i:select>
+    </i:bindings>
+</i:table>
