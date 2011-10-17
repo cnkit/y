@@ -68,7 +68,7 @@
             
             <execute>
                 <![CDATA[
-                    y.include('env.js');
+                    //y.include('env.js');
                     y.include('image.js');
                     y.include('resource.js');
                 
