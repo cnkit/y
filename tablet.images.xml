@@ -72,7 +72,7 @@
                     y.include('image.js');
                     y.include('resource.js');
                 
-                    var theRequest = request.query("query", unescape(inputs["query"])).query("BingClientIP", request.headers["YahooRemoteIP"]).query("UserIpAddress", request.headers["YahooRemoteIP"]).query("ocr", unescape(inputs["orc"])).accept("application/xml;charset=utf-8").get();
+                    var theRequest = request.query("query", unescape(inputs["query"])).query("BingClientIP", request.headers["YahooRemoteIP"]).query("UserIpAddress", request.headers["YahooRemoteIP"]).query("ocr", unescape(inputs["ocr"])).accept("application/xml;charset=utf-8").get();
                     var xml = theRequest.response;
                     y.log(theRequest.headers);
                     
