@@ -5,7 +5,7 @@
     <description>
             Retrieve movie details from Yahoo! Movies.
     </description>
-        <sampleQuery>select * from {table} where movie_id="1810187722"</sampleQuery>
+        <sampleQuery>select * from {table} where movie_name="The Hangover" and movie_id="1810187722"</sampleQuery>
     </meta>
 
     <i:bindings>
