@@ -5,7 +5,7 @@
     <description>
             Retrieve movie details from Yahoo! Movies.
     </description>
-        <sampleQuery>select * from {table} where movie_name="The Hangover" and movie_id="1810187722"</sampleQuery>
+        <sampleQuery>select * from {table} where movie_id="1810187722"</sampleQuery>
     </meta>
 
     <i:bindings>
@@ -18,7 +18,7 @@
             </urls>
 
             <inputs>
-                <key id='movie_name' type='xs:string' paramType='path' required='true' />
+                <key id='movie_name' type='xs:string' paramType='path' required='false' />
                 <key id='movie_id' type='xs:string' paramType='path' required='true' />
             </inputs>
 
