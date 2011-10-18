@@ -18,7 +18,7 @@
             </urls>
 
             <inputs>
-                <key id='movie_name' type='xs:string' paramType='path' required='false' />
+                <key id='movie_name' type='xs:string' paramType='path' required='true' />
                 <key id='movie_id' type='xs:string' paramType='path' required='true' />
             </inputs>
 
