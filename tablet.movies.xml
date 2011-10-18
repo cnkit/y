@@ -26,7 +26,6 @@
                 var xml = request.get().response;
                 var moviens = new Namespace('urn:yahoo:movie');
                 var MovieDetails = xml.moviens::MovieDetails;
-/*
                 try {
                     var statement = "select * from tablet.video where query='" + movie_name + "'";
                     var videoResult = y.query(statement);
@@ -35,7 +34,6 @@
                 } catch (exception) {
                     y.log(exception);
                 }
-*/
                 response.object=MovieDetails;
       ]]></execute>
         </i:select>
