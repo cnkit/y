@@ -12,7 +12,8 @@
         <i:select produces="XML" itemPath="">
             <urls>
                 <url env="all">
-            http://us-iy2.search.vip.sk1.yahoo.com:80/us/iy.web.php?ei=UTF-8&amp;eo=UTF-8&amp;p={movie_name}&amp;o=xml&amp;intl=us&amp;ult=2&amp;q={movie_name}&amp;sck={movie_id}&amp;sct=moviewow&amp;testid=VIP099&amp;src=web
+            	<!-- http://us-iy2.search.vip.sk1.yahoo.com:80/us/iy.web.php?ei=UTF-8&amp;eo=UTF-8&amp;p={movie_name}&amp;o=xml&amp;intl=us&amp;ult=2&amp;q={movie_name}&amp;sck={movie_id}&amp;sct=moviewow&amp;testid=VIP099&amp;src=web -->
+		http://api.movies.yahoo.com:4080/V2/movieDetails?yprop=searchdd&amp;mid={movie_id}
                 </url>
             </urls>
 
